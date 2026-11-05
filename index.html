@@ -4,100 +4,126 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PSL Live Auction Command Dashboard</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & ReactDOM CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel Standalone CDN -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- SheetJS (xlsx) for XLS/XLSX/CSV Import -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #080c14;
-      color: #f3f4f6;
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #080c14; color: #f3f4f6; }
     .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #0b111e; }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #334155; }
-    .command-card {
-      background: #0f172a;
-      border: 1px solid #1e293b;
-    }
+    .command-card { background: #0f172a; border: 1px solid #1e293b; }
   </style>
 </head>
-<body class="bg-[#080c14] min-h-screen text-slate-100 antialiased selection:bg-emerald-500 selection:text-black">
+<body class="bg-[#080c14] min-h-screen text-slate-100 antialiased">
   <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef } = React;
-
-    // --- CUSTOM DASHBOARD PASSCODE CONFIGURATION ---
+  <script>
     const DASHBOARD_PASSCODE = "PSL2026";
 
-    // --- PASSWORD GATE SCREEN COMPONENT ---
-    function PasscodeScreen({ onUnlock }) {
-      const [input, setInput] = useState("");
-      const [error, setError] = useState(false);
+    const DEFAULT_TEAMS = [
+      { id: "HYD", name: "Hyderabad", short: "HYD", purseCap: 50.5, bgClass: "bg-orange-500/10 border-orange-500/40 text-orange-400" },
+      { id: "ISLU", name: "Islamabad United", short: "ISLU", purseCap: 50.5, bgClass: "bg-red-500/10 border-red-500/40 text-red-400" },
+      { id: "KK", name: "Karachi Kings", short: "KK", purseCap: 50.5, bgClass: "bg-blue-500/10 border-blue-500/40 text-blue-400" },
+      { id: "LQ", name: "Lahore Qalandars", short: "LQ", purseCap: 50.5, bgClass: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" },
+      { id: "RWP", name: "Rawalpindi", short: "RWP", purseCap: 45.0, bgClass: "bg-cyan-500/10 border-cyan-500/40 text-cyan-400" },
+      { id: "PZ", name: "Peshawar Zalmi", short: "PZ", purseCap: 50.5, bgClass: "bg-amber-500/10 border-amber-500/40 text-amber-400" },
+      { id: "QG", name: "Quetta Gladiators", short: "QG", purseCap: 50.5, bgClass: "bg-purple-500/10 border-purple-500/40 text-purple-400" },
+      { id: "SS", name: "Sialkot Stallions", short: "SS", purseCap: 50.5, bgClass: "bg-rose-500/10 border-rose-500/40 text-rose-400" }
+    ];
 
-      const handleCheck = (e) => {
-        e.preventDefault();
-        if (input.trim() === DASHBOARD_PASSCODE) {
-          localStorage.setItem("psl_authenticated", "true");
-          onUnlock();
-        } else {
-          setError(true);
-        }
-      };
+    const INITIAL_PLAYERS = [
+      { id: 1, name: "Saim Ayub", role: "Top-Order Batter", isOverseas: false, price: 12.6, teamId: "HYD" },
+      { id: 2, name: "Usman Khan", role: "Wicket-keeper", isOverseas: false, price: 4.62, teamId: "HYD" },
+      { id: 3, name: "Akif Javed", role: "Fast Bowler", isOverseas: false, price: 1.96, teamId: "HYD" },
+      { id: 4, name: "Maaz Sadaqat", role: "All-Rounder", isOverseas: false, price: 3.5, teamId: "HYD" },
+      { id: 5, name: "Marnus Labuschagne", role: "Top-Order Batter", isOverseas: true, price: 5.88, teamId: "HYD" },
+      { id: 19, name: "Shadab Khan", role: "All-Rounder", isOverseas: false, price: 7.0, teamId: "ISLU" },
+      { id: 22, name: "Devon Conway", role: "Top-Order Batter", isOverseas: true, price: 6.3, teamId: "ISLU" },
+      { id: 37, name: "Hasan Ali", role: "Fast Bowler", isOverseas: false, price: 4.76, teamId: "KK" },
+      { id: 42, name: "David Warner", role: "Top-Order Batter", isOverseas: true, price: 7.9, teamId: "KK" },
+      { id: 55, name: "Shaheen Afridi", role: "Fast Bowler", isOverseas: false, price: 7.0, teamId: "LQ" },
+      { id: 72, name: "Mohammad Rizwan", role: "Wicket-keeper", isOverseas: false, price: 5.6, teamId: "RWP" },
+      { id: 89, name: "Babar Azam", role: "Top-Order Batter", isOverseas: false, price: 7.0, teamId: "PZ" },
+      { id: 105, name: "Abrar Ahmed", role: "Spinner", isOverseas: false, price: 7.0, teamId: "QG" },
+      { id: 125, name: "Steve Smith", role: "Top-Order Batter", isOverseas: true, price: 14.0, teamId: "SS" }
+    ];
 
-      return (
-        <div className="fixed inset-0 z-[100] bg-[#080c14] flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center">
-            <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/50 rounded-xl flex items-center justify-center text-2xl mx-auto mb-3">
-              🔒
-            </div>
-            <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">
-              PSL AUCTION HUB
-            </h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Enter team passcode to view auction telemetry
-            </p>
-            <form onSubmit={handleCheck} className="space-y-3">
-              <input
-                type="password"
-                placeholder="Passcode..."
-                value={input}
-                onChange={(e) => { setInput(e.target.value); setError(false); }}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-sm font-bold text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
-              {error && (
-                <p className="text-xs font-bold text-rose-400">Incorrect Passcode!</p>
-              )}
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider transition shadow-lg"
-              >
-                Unlock Dashboard
-              </button>
-            </form>
-          </div>
-        </div>
-      );
+    let state = {
+      authenticated: localStorage.getItem("psl_authenticated") === "true",
+      myTeamId: "ISLU",
+      selectedSquadTeamId: "ISLU",
+      sales: JSON.parse(localStorage.getItem("psl_sales_data") || "null") || INITIAL_PLAYERS,
+      passInput: "",
+      error: false,
+      pName: "",
+      pRole: "Top-Order Batter",
+      pPrice: "",
+      pOverseas: false
+    };
+
+    function saveState() {
+      localStorage.setItem("psl_sales_data", JSON.stringify(state.sales));
+      localStorage.setItem("psl_authenticated", state.authenticated ? "true" : "false");
     }
 
-    // --- PSL OFFICIAL FRANCHISES FROM SHEET ---
-    const DEFAULT_TEAMS = [
-      { id: "HYD", name: "Hyderabad", short: "HYD", color: "#f97316", bgClass: "bg-orange-500/10 border-orange-500/40 text-orange-400", purseCap: 50.5 },
-      { id: "ISLU", name: "Islamabad United", short: "ISLU", color: "#ef4444", bgClass: "bg-red-500/10 border-red-500/40 text-red-400", purseCap: 50.5 },
-      { id: "KK", name: "Karachi Kings", short: "KK", color: "#3b82f6", bgClass: "bg-blue-500/10 border-blue-500/40 text-blue-400", purseCap: 50.5 },
-      { id: "LQ", name: "Lahore Qalandars", short: "LQ", color: "#10b981", bgClass: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400", purseCap: 50.5 },
-      { id: "RWP", name: "Rawalpindi", short: "RWP", color: "#06b6d4", bgClass: "bg-cyan-500/10 border-cyan-500/40 text-cyan-400", purseCap: 45.0 },
-      { id: "PZ", name: "Peshawar Zalmi", short: "PZ", color: "#f59e0b", bgClass: "bg-amber-500/10 border-amber-500/40 text-amber-400", purseCap: 50.5 },
-      { id: "QG", name: "Quetta Gladiators", short: "QG", color: "#a855
+    function render() {
+      const root = document.getElementById("root");
+      if (!state.authenticated) {
+        root.innerHTML = `
+          <div class="fixed inset-0 z-[100] bg-[#080c14] flex items-center justify-center p-4">
+            <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center">
+              <div class="w-12 h-12 bg-emerald-500/20 border border-emerald-500/50 rounded-xl flex items-center justify-center text-2xl mx-auto mb-3">🔒</div>
+              <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">PSL AUCTION HUB</h2>
+              <p class="text-xs text-slate-400 mb-4">Enter team passcode to view auction telemetry</p>
+              <form id="passForm" class="space-y-3">
+                <input id="passInput" type="password" placeholder="Passcode..." value="${state.passInput}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-sm font-bold text-white focus:outline-none focus:border-emerald-500" />
+                ${state.error ? '<p class="text-xs font-bold text-rose-400">Incorrect Passcode!</p>' : ''}
+                <button type="submit" class="w-full py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg">Unlock Dashboard</button>
+              </form>
+            </div>
+          </div>
+        `;
+        document.getElementById("passInput").addEventListener("input", (e) => { state.passInput = e.target.value; state.error = false; });
+        document.getElementById("passForm").addEventListener("submit", (e) => {
+          e.preventDefault();
+          if (state.passInput.trim() === DASHBOARD_PASSCODE) {
+            state.authenticated = true;
+            saveState();
+            render();
+          } else {
+            state.error = true;
+            render();
+          }
+        });
+        return;
+      }
+
+      // Compute Stats
+      const stats = {};
+      DEFAULT_TEAMS.forEach(t => {
+        stats[t.id] = { ...t, spent: 0, count: 0, overseas: 0, roster: [] };
+      });
+      state.sales.forEach(s => {
+        if (stats[s.teamId]) {
+          stats[s.teamId].spent += Number(s.price);
+          stats[s.teamId].count += 1;
+          if (s.isOverseas) stats[s.teamId].overseas += 1;
+          stats[s.teamId].roster.push(s);
+        }
+      });
+
+      const myTeam = stats[state.myTeamId];
+      const remPurse = Math.max(0, myTeam.purseCap - myTeam.spent);
+      const maxBid = Math.max(0, remPurse - (Math.max(0, 16 - myTeam.count) * 0.50));
+
+      root.innerHTML = `
+        <div class="min-h-screen flex flex-col pb-12">
+          <header class="bg-[#0b1120] border-b border-slate-800 sticky top-0 z-50 px-4 py-3 shadow-xl">
+            <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center font-black text-emerald-400 text-lg">⚡</div>
+                <div>
+                  <h1 class="text-lg font-black text-white flex items-center
