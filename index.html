@@ -126,4 +126,56 @@
               <div class="flex items-center space-x-3">
                 <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center font-black text-emerald-400 text-lg">⚡</div>
                 <div>
-                  <h1 class="text-lg font-black text-white flex items-center
+                  <h1 class="text-lg font-black text-white flex items-center gap-2">PSL AUCTION COMMAND CENTER</h1>
+                  <p class="text-xs text-slate-400">Live Telemetry & Strategy Hub</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <button id="lockBtn" class="px-2.5 py-1.5 bg-rose-500/10 border border-rose-500/40 rounded-lg text-xs font-bold text-rose-400">🔒 Lock</button>
+              </div>
+            </div>
+          </header>
+
+          <main class="max-w-7xl mx-auto w-full px-4 pt-4 space-y-4 flex-1">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="command-card rounded-xl p-4 border-l-4 border-l-emerald-500">
+                <span class="text-xs font-bold text-slate-400 uppercase">Remaining Purse</span>
+                <div class="text-3xl font-black text-emerald-400 mono mt-1">PKR ${remPurse.toFixed(2)} Cr</div>
+              </div>
+              <div class="command-card rounded-xl p-4 border-l-4 border-l-cyan-500">
+                <span class="text-xs font-bold text-slate-400 uppercase">Max Bid Power</span>
+                <div class="text-3xl font-black text-cyan-400 mono mt-1">PKR ${maxBid.toFixed(2)} Cr</div>
+              </div>
+              <div class="command-card rounded-xl p-4 border-l-4 border-l-amber-500">
+                <span class="text-xs font-bold text-slate-400 uppercase">Squad Count</span>
+                <div class="text-3xl font-black text-amber-400 mono mt-1">${myTeam.count} / 20</div>
+              </div>
+            </div>
+
+            <div class="command-card rounded-xl p-4">
+              <h2 class="text-sm font-black uppercase text-white mb-3">All 8 Teams Telemetry Summary</h2>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                ${DEFAULT_TEAMS.map(t => `
+                  <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+                    <span class="text-xs font-black px-2 py-0.5 rounded border ${t.bgClass}">${t.name}</span>
+                    <div class="mt-2 text-xs">Purse: <strong class="text-emerald-400 mono">PKR ${(t.purseCap - stats[t.id].spent).toFixed(2)} Cr</strong></div>
+                    <div class="text-xs">Squad: <strong class="text-white">${stats[t.id].count}/20</strong></div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </main>
+        </div>
+      `;
+
+      document.getElementById("lockBtn").addEventListener("click", () => {
+        state.authenticated = false;
+        saveState();
+        render();
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
