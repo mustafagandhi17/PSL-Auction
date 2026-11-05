@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PSL Live Auction Command Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel Standalone CDN -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- SheetJS (xlsx) for XLS/XLSX/CSV Import -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #080c14;
+      color: #f3f4f6;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b111e; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .command-card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+    }
+  </style>
+</head>
+<body class="bg-[#080c14] min-h-screen text-slate-100 antialiased selection:bg-emerald-500 selection:text-black">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- PSL OFFICIAL FRANCHISES FROM SHEET ---
+    const DEFAULT_TEAMS = [
+      { id: "HYD", name: "Hyderabad", short: "HYD", color: "#f97316", bgClass: "bg-orange-500/10 border-orange-500/40 text-orange-400", purseCap: 50.5 },
+      { id: "ISLU", name: "Islamabad United", short: "ISLU", color: "#ef4444", bgClass: "bg-red-500/10 border-red-500/40 text-red-400", purseCap: 50.5 },
+      { id: "KK", name: "Karachi Kings", short: "KK", color: "#3b82f6", bgClass: "bg-blue-500/10 border-blue-500/40 text-blue-400", purseCap: 50.5 },
+      { id: "LQ", name: "Lahore Qalandars", short: "LQ", color: "#10b981", bgClass: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400", purseCap: 50.5 },
+      { id: "RWP", name: "Rawalpindi", short: "RWP", color: "#06b6d4", bgClass: "bg-cyan-500/10 border-cyan-500/40 text-cyan-400", purseCap: 45.0 },
+      { id: "PZ", name: "Peshawar Zalmi", short: "PZ", color: "#f59e0b", bgClass: "bg-amber-500/10 border-amber-500/40 text-amber-400", purseCap: 50.5 },
+      { id: "QG", name: "Quetta Gladiators", short: "QG", color: "#a855f7", bgClass: "bg-purple-500/10 border-purple-500/40 text-purple-400", purseCap: 50.5 },
+      { id: "SS", name: "Sialkot Stallions", short: "SS", color: "#f43f5e", bgClass: "bg-rose-500/10 border-rose-500/40 text-rose-400", purseCap: 50.5 }
+    ];
+
+    // --- INITIAL DATASET FROM PSL 11 AUCTION SHEET (ALL 137 PLAYERS) ---
+    const INITIAL_SALES = [
+      // HYDERABAD (18 Players)
+      { id: 1, name: "Saim Ayub", role: "Top-Order Batter", isOverseas: false, price: 12.6, teamId: "HYD", timestamp: "Pick 1" },
+      { id: 2, name: "Usman Khan", role: "Wicket-keeper", isOverseas: false, price: 4.62, teamId: "HYD", timestamp: "Pick 2" },
+      { id: 3, name: "Akif Javed", role: "Fast Bowler", isOverseas: false, price: 1.96, teamId: "HYD", timestamp: "Pick 3" },
+      { id: 4, name: "Maaz Sadaqat", role: "All-Rounder", isOverseas: false, price: 3.5, teamId: "HYD", timestamp: "Pick 4" },
+      { id: 5, name: "Marnus Labuschagne", role: "Top-Order Batter", isOverseas: true, price: 5.88, teamId: "HYD", timestamp: "Direct Signing" },
+      { id: 6, name: "Mohammad Ali", role: "Fast Bowler", isOverseas: false, price: 2.15, teamId: "HYD", timestamp: "Pick 6" },
+      { id: 7, name: "Kusal Perrera", role: "Wicket-keeper", isOverseas: true, price: 3.1, teamId: "HYD", timestamp: "Pick 7" },
+      { id: 8, name: "Irfan Khan Niazi", role: "All-Rounder", isOverseas: false, price: 2.9, teamId: "HYD", timestamp: "Pick 8" },
+      { id: 9, name: "Hassan Khan", role: "Spinner", isOverseas: true, price: 1.85, teamId: "HYD", timestamp: "Pick 9" },
+      { id: 10, name: "Shayan Jahangir", role: "Wicket-keeper", isOverseas: true, price: 0.6, teamId: "HYD", timestamp: "Pick 10" },
+      { id: 11, name: "Ottneil Baartman", role: "Fast Bowler", isOverseas: true, price: 1.1, teamId: "HYD", timestamp: "Pick 11" },
+      { id: 12, name: "Hammad Azam", role: "All-Rounder", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 12" },
+      { id: 13, name: "Riley Merideth", role: "Fast Bowler", isOverseas: true, price: 4.2, teamId: "HYD", timestamp: "Pick 13" },
+      { id: 14, name: "Sharjeel Khan", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 14" },
+      { id: 15, name: "Asif Mehmood", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 15" },
+      { id: 16, name: "Hunain Shah", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 16" },
+      { id: 17, name: "Rizwan Mehmood", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 17" },
+      { id: 18, name: "Saad Ali", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "HYD", timestamp: "Pick 18" },
+
+      // ISLAMABAD UNITED (18 Players)
+      { id: 19, name: "Shadab Khan", role: "All-Rounder", isOverseas: false, price: 7.0, teamId: "ISLU", timestamp: "Pick 1" },
+      { id: 20, name: "Salman Irshad", role: "Fast Bowler", isOverseas: false, price: 1.2, teamId: "ISLU", timestamp: "Pick 2" },
+      { id: 21, name: "Andries Gous", role: "Wicket-keeper", isOverseas: true, price: 1.4, teamId: "ISLU", timestamp: "Pick 3" },
+      { id: 22, name: "Devon Conway", role: "Top-Order Batter", isOverseas: true, price: 6.3, teamId: "ISLU", timestamp: "Direct Signing" },
+      { id: 23, name: "Faheem Ashraf", role: "All-Rounder", isOverseas: false, price: 8.5, teamId: "ISLU", timestamp: "Pick 5" },
+      { id: 24, name: "Max Bryant", role: "Top-Order Batter", isOverseas: true, price: 1.95, teamId: "ISLU", timestamp: "Pick 6" },
+      { id: 25, name: "Mehran Mumtaz", role: "Spinner", isOverseas: false, price: 1.2, teamId: "ISLU", timestamp: "Pick 7" },
+      { id: 26, name: "Mark Chapman", role: "Top-Order Batter", isOverseas: true, price: 7.0, teamId: "ISLU", timestamp: "Pick 8" },
+      { id: 27, name: "Wasim Jr.", role: "Fast Bowler", isOverseas: false, price: 4.1, teamId: "ISLU", timestamp: "Pick 9" },
+      { id: 28, name: "Mir Hamza Sajjad", role: "Fast Bowler", isOverseas: false, price: 0.7, teamId: "ISLU", timestamp: "Pick 10" },
+      { id: 29, name: "Sameer Minhas", role: "Top-Order Batter", isOverseas: false, price: 1.9, teamId: "ISLU", timestamp: "Pick 11" },
+      { id: 30, name: "Sameen Gul", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "ISLU", timestamp: "Pick 12" },
+      { id: 31, name: "Shamar Joseph", role: "Fast Bowler", isOverseas: true, price: 1.1, teamId: "ISLU", timestamp: "Pick 13" },
+      { id: 32, name: "Imad Wasim", role: "All-Rounder", isOverseas: false, price: 2.2, teamId: "ISLU", timestamp: "Pick 14" },
+      { id: 33, name: "Richard Gleeson", role: "Fast Bowler", isOverseas: true, price: 1.1, teamId: "ISLU", timestamp: "Pick 15" },
+      { id: 34, name: "Haider Ali", role: "Top-Order Batter", isOverseas: false, price: 1.5, teamId: "ISLU", timestamp: "Pick 16" },
+      { id: 35, name: "Mohammad Husnain", role: "Fast Bowler", isOverseas: false, price: 0.775, teamId: "ISLU", timestamp: "Pick 17" },
+      { id: 36, name: "Dipendra Singh", role: "All-Rounder", isOverseas: true, price: 0.6, teamId: "ISLU", timestamp: "Pick 18" },
+
+      // KARACHI KINGS (18 Players)
+      { id: 37, name: "Hasan Ali", role: "Fast Bowler", isOverseas: false, price: 4.76, teamId: "KK", timestamp: "Pick 1" },
+      { id: 38, name: "Abbas Afridi", role: "Fast Bowler", isOverseas: false, price: 3.08, teamId: "KK", timestamp: "Pick 2" },
+      { id: 39, name: "Khushdil Shah", role: "All-Rounder", isOverseas: false, price: 3.36, teamId: "KK", timestamp: "Pick 3" },
+      { id: 40, name: "Saad Baig", role: "Wicket-keeper", isOverseas: false, price: 0.6, teamId: "KK", timestamp: "Pick 4" },
+      { id: 41, name: "Moeen Ali", role: "All-Rounder", isOverseas: true, price: 6.4, teamId: "KK", timestamp: "Direct Signing" },
+      { id: 42, name: "David Warner", role: "Top-Order Batter", isOverseas: true, price: 7.9, teamId: "KK", timestamp: "Pick 6" },
+      { id: 43, name: "Azam Khan", role: "Wicket-keeper", isOverseas: false, price: 3.25, teamId: "KK", timestamp: "Pick 7" },
+      { id: 44, name: "Salman Ali Agha", role: "All-Rounder", isOverseas: false, price: 5.85, teamId: "KK", timestamp: "Pick 8" },
+      { id: 45, name: "Shahid Aziz", role: "Fast Bowler", isOverseas: false, price: 0.925, teamId: "KK", timestamp: "Pick 9" },
+      { id: 46, name: "Mir Hamza", role: "Fast Bowler", isOverseas: false, price: 2.4, teamId: "KK", timestamp: "Pick 10" },
+      { id: 47, name: "Adam Zampa", role: "Spinner", isOverseas: true, price: 4.5, teamId: "KK", timestamp: "Pick 11" },
+      { id: 48, name: "Mhmd Hamza Sohail", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "KK", timestamp: "Pick 12" },
+      { id: 49, name: "Aqib Ilyas", role: "All-Rounder", isOverseas: false, price: 0.6, teamId: "KK", timestamp: "Pick 13" },
+      { id: 50, name: "Khuzaima Bin Tanveer", role: "Fast Bowler", isOverseas: true, price: 0.9, teamId: "KK", timestamp: "Pick 14" },
+      { id: 51, name: "Johnson Charles", role: "Wicket-keeper", isOverseas: true, price: 2.0, teamId: "KK", timestamp: "Pick 15" },
+      { id: 52, name: "Muhammad Waseem", role: "Top-Order Batter", isOverseas: true, price: 1.1, teamId: "KK", timestamp: "Pick 16" },
+      { id: 53, name: "Ihsanullah", role: "Fast Bowler", isOverseas: false, price: 1.05, teamId: "KK", timestamp: "Pick 17" },
+      { id: 54, name: "Rizwanullah", role: "Spinner", isOverseas: false, price: 0.6, teamId: "KK", timestamp: "Pick 18" },
+
+      // LAHORE QALANDARS (17 Players)
+      { id: 55, name: "Shaheen Afridi", role: "Fast Bowler", isOverseas: false, price: 7.0, teamId: "LQ", timestamp: "Pick 1" },
+      { id: 56, name: "Abdullah Shafique", role: "Top-Order Batter", isOverseas: false, price: 2.2, teamId: "LQ", timestamp: "Pick 2" },
+      { id: 57, name: "Sikandar Raza", role: "All-Rounder", isOverseas: true, price: 2.8, teamId: "LQ", timestamp: "Pick 3" },
+      { id: 58, name: "Mohammad Naeem", role: "Top-Order Batter", isOverseas: false, price: 0.7, teamId: "LQ", timestamp: "Pick 4" },
+      { id: 59, name: "Mustafizur Rahman", role: "Fast Bowler", isOverseas: true, price: 6.4, teamId: "LQ", timestamp: "Direct Signing" },
+      { id: 60, name: "Harris Rauf", role: "Fast Bowler", isOverseas: false, price: 7.6, teamId: "LQ", timestamp: "Pick 6" },
+      { id: 61, name: "Usama Mir", role: "Spinner", isOverseas: false, price: 3.5, teamId: "LQ", timestamp: "Pick 7" },
+      { id: 62, name: "Fakhar Zaman", role: "Top-Order Batter", isOverseas: false, price: 7.95, teamId: "LQ", timestamp: "Pick 8" },
+      { id: 63, name: "Ubaid Shah", role: "Fast Bowler", isOverseas: false, price: 2.7, teamId: "LQ", timestamp: "Pick 9" },
+      { id: 64, name: "Haseebullah Khan", role: "Wicket-keeper", isOverseas: false, price: 1.1, teamId: "LQ", timestamp: "Pick 10" },
+      { id: 65, name: "Mhmd Farooq", role: "All-Rounder", isOverseas: false, price: 0.6, teamId: "LQ", timestamp: "Pick 11" },
+      { id: 66, name: "Dasun Shanaka", role: "All-Rounder", isOverseas: true, price: 0.75, teamId: "LQ", timestamp: "Pick 12" },
+      { id: 67, name: "Parvez Hossain Emon", role: "Top-Order Batter", isOverseas: true, price: 0.6, teamId: "LQ", timestamp: "Pick 13" },
+      { id: 68, name: "Asif Ali", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "LQ", timestamp: "Pick 14" },
+      { id: 69, name: "Hussain Talat", role: "All-Rounder", isOverseas: false, price: 0.775, teamId: "LQ", timestamp: "Pick 15" },
+      { id: 70, name: "Tayyab Tahir", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "LQ", timestamp: "Pick 16" },
+      { id: 71, name: "Gudakesh Motie", role: "Spinner", isOverseas: true, price: 1.1, teamId: "LQ", timestamp: "Pick 17" },
+
+      // RAWALPINDI (17 Players)
+      { id: 72, name: "Mohammad Rizwan", role: "Wicket-keeper", isOverseas: false, price: 5.6, teamId: "RWP", timestamp: "Pick 1" },
+      { id: 73, name: "Sam Billings", role: "Wicket-keeper", isOverseas: true, price: 3.08, teamId: "RWP", timestamp: "Pick 2" },
+      { id: 74, name: "Zaman Khan", role: "Fast Bowler", isOverseas: false, price: 1.12, teamId: "RWP", timestamp: "Pick 3" },
+      { id: 75, name: "Yasir Khan", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "RWP", timestamp: "Pick 4" },
+      { id: 76, name: "Naseem Shah", role: "Fast Bowler", isOverseas: false, price: 8.65, teamId: "RWP", timestamp: "Pick 5" },
+      { id: 77, name: "Rishad Hussain", role: "Spinner", isOverseas: true, price: 3.0, teamId: "RWP", timestamp: "Pick 6" },
+      { id: 78, name: "Daryl Mitchell", role: "All-Rounder", isOverseas: true, price: 8.05, teamId: "RWP", timestamp: "Pick 7" },
+      { id: 79, name: "Mohd Amir", role: "Fast Bowler", isOverseas: false, price: 5.4, teamId: "RWP", timestamp: "Pick 8" },
+      { id: 80, name: "Abdullah Fazal", role: "Top-Order Batter", isOverseas: false, price: 0.675, teamId: "RWP", timestamp: "Pick 9" },
+      { id: 81, name: "Amad Butt", role: "All-Rounder", isOverseas: false, price: 0.8, teamId: "RWP", timestamp: "Pick 10" },
+      { id: 82, name: "Dian Forrester", role: "All-Rounder", isOverseas: true, price: 0.6, teamId: "RWP", timestamp: "Pick 11" },
+      { id: 83, name: "Laurie Evans", role: "Top-Order Batter", isOverseas: true, price: 1.1, teamId: "RWP", timestamp: "Pick 12" },
+      { id: 84, name: "Asif Afridi", role: "Spinner", isOverseas: false, price: 2.4, teamId: "RWP", timestamp: "Pick 13" },
+      { id: 85, name: "Kamran Ghulam", role: "All-Rounder", isOverseas: false, price: 0.65, teamId: "RWP", timestamp: "Pick 14" },
+      { id: 86, name: "Fawad Ali", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "RWP", timestamp: "Pick 15" },
+      { id: 87, name: "Mohd Amir Khan", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "RWP", timestamp: "Pick 16" },
+      { id: 88, name: "Shahzaib Khan", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "RWP", timestamp: "Pick 17" },
+
+      // PESHAWAR ZALMI (16 Players)
+      { id: 89, name: "Babar Azam", role: "Top-Order Batter", isOverseas: false, price: 7.0, teamId: "PZ", timestamp: "Pick 1" },
+      { id: 90, name: "Sufyan Muqeem", role: "Spinner", isOverseas: false, price: 4.48, teamId: "PZ", timestamp: "Pick 2" },
+      { id: 91, name: "Abdul Samad", role: "Top-Order Batter", isOverseas: false, price: 2.8, teamId: "PZ", timestamp: "Pick 3" },
+      { id: 92, name: "Ali Raza", role: "Fast Bowler", isOverseas: false, price: 1.96, teamId: "PZ", timestamp: "Pick 4" },
+      { id: 93, name: "Aaron Hardie", role: "All-Rounder", isOverseas: true, price: 6.3, teamId: "PZ", timestamp: "Direct Signing" },
+      { id: 94, name: "Aamir Jamal", role: "All-Rounder", isOverseas: false, price: 1.9, teamId: "PZ", timestamp: "Pick 6" },
+      { id: 95, name: "Khurram Shahzad", role: "Fast Bowler", isOverseas: false, price: 2.7, teamId: "PZ", timestamp: "Pick 7" },
+      { id: 96, name: "Mohd Haris", role: "Wicket-keeper", isOverseas: false, price: 2.2, teamId: "PZ", timestamp: "Pick 8" },
+      { id: 97, name: "Khalid Usamn", role: "All-Rounder", isOverseas: false, price: 0.6, teamId: "PZ", timestamp: "Pick 9" },
+      { id: 98, name: "Abdul Subhan", role: "Fast Bowler", isOverseas: false, price: 0.625, teamId: "PZ", timestamp: "Pick 10" },
+      { id: 99, name: "James Vince", role: "Top-Order Batter", isOverseas: true, price: 3.0, teamId: "PZ", timestamp: "Pick 11" },
+      { id: 100, name: "Michael Bracewell", role: "All-Rounder", isOverseas: true, price: 4.2, teamId: "PZ", timestamp: "Pick 12" },
+      { id: 101, name: "Kusal Mendis", role: "Wicket-keeper", isOverseas: true, price: 4.2, teamId: "PZ", timestamp: "Pick 13" },
+      { id: 102, name: "Iftikhar Ahmed", role: "All-Rounder", isOverseas: false, price: 1.8, teamId: "PZ", timestamp: "Pick 14" },
+      { id: 103, name: "Nahid Rana", role: "Fast Bowler", isOverseas: true, price: 0.6, teamId: "PZ", timestamp: "Pick 15" },
+      { id: 104, name: "Mirza Tahir Baig", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "PZ", timestamp: "Pick 16" },
+
+      // QUETTA GLADIATORS (20 Players)
+      { id: 105, name: "Abrar Ahmed", role: "Spinner", isOverseas: false, price: 7.0, teamId: "QG", timestamp: "Pick 1" },
+      { id: 106, name: "Usman Tariq", role: "Spinner", isOverseas: false, price: 5.6, teamId: "QG", timestamp: "Pick 2" },
+      { id: 107, name: "Hasan Nawaz", role: "Top-Order Batter", isOverseas: false, price: 3.92, teamId: "QG", timestamp: "Pick 3" },
+      { id: 108, name: "Shamyl Hussain", role: "Top-Order Batter", isOverseas: false, price: 0.84, teamId: "QG", timestamp: "Pick 4" },
+      { id: 109, name: "Spencer Johnson", role: "Fast Bowler", isOverseas: true, price: 5.6, teamId: "QG", timestamp: "Direct Signing" },
+      { id: 110, name: "Riley Rousow", role: "Top-Order Batter", isOverseas: true, price: 5.55, teamId: "QG", timestamp: "Pick 6" },
+      { id: 111, name: "Faisal Akram", role: "Spinner", isOverseas: false, price: 1.25, teamId: "QG", timestamp: "Pick 7" },
+      { id: 112, name: "Arafat Minhas", role: "All-Rounder", isOverseas: false, price: 1.1, teamId: "QG", timestamp: "Pick 8" },
+      { id: 113, name: "Jehandad Khan", role: "All-Rounder", isOverseas: false, price: 2.5, teamId: "QG", timestamp: "Pick 9" },
+      { id: 114, name: "Mohd Nafay", role: "Top-Order Batter", isOverseas: false, price: 6.5, teamId: "QG", timestamp: "Pick 10" },
+      { id: 115, name: "Wasim Akram Jr", role: "Fast Bowler", isOverseas: false, price: 0.775, teamId: "QG", timestamp: "Pick 11" },
+      { id: 116, name: "Khanzeb", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "QG", timestamp: "Pick 12" },
+      { id: 117, name: "Bismillah Khan", role: "Wicket-keeper", isOverseas: false, price: 0.6, teamId: "QG", timestamp: "Pick 13" },
+      { id: 118, name: "Saqib Khan", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "QG", timestamp: "Pick 14" },
+      { id: 119, name: "Bret Hampton", role: "All-Rounder", isOverseas: true, price: 0.6, teamId: "QG", timestamp: "Pick 15" },
+      { id: 120, name: "Samuel Harper", role: "Wicket-keeper", isOverseas: true, price: 0.6, teamId: "QG", timestamp: "Pick 16" },
+      { id: 121, name: "Bevon Jacobs", role: "Top-Order Batter", isOverseas: true, price: 0.6, teamId: "QG", timestamp: "Pick 17" },
+      { id: 122, name: "Saud Shakeel", role: "Top-Order Batter", isOverseas: false, price: 0.65, teamId: "QG", timestamp: "Pick 18" },
+      { id: 123, name: "Ben McDermott", role: "Wicket-keeper", isOverseas: true, price: 1.1, teamId: "QG", timestamp: "Pick 19" },
+      { id: 124, name: "Tom Curren", role: "All-Rounder", isOverseas: true, price: 4.2, teamId: "QG", timestamp: "Pick 20" },
+
+      // SIALKOT STALLIONS (16 Players)
+      { id: 125, name: "Steve Smith", role: "Top-Order Batter", isOverseas: true, price: 14.0, teamId: "SS", timestamp: "Pick 1" },
+      { id: 126, name: "Mohammad Nawaz", role: "All-Rounder", isOverseas: false, price: 6.16, teamId: "SS", timestamp: "Pick 2" },
+      { id: 127, name: "Salman Mirza", role: "Fast Bowler", isOverseas: false, price: 3.92, teamId: "SS", timestamp: "Pick 3" },
+      { id: 128, name: "Ahmed Daniyal", role: "Fast Bowler", isOverseas: false, price: 2.24, teamId: "SS", timestamp: "Pick 4" },
+      { id: 129, name: "Saad Masood", role: "All-Rounder", isOverseas: false, price: 0.84, teamId: "SS", timestamp: "Pick 5" },
+      { id: 130, name: "Sahibzada Farhan", role: "Top-Order Batter", isOverseas: false, price: 5.7, teamId: "SS", timestamp: "Pick 6" },
+      { id: 131, name: "Jahanzaib Sultan", role: "Top-Order Batter", isOverseas: false, price: 0.6, teamId: "SS", timestamp: "Pick 7" },
+      { id: 132, name: "Ashton Turner", role: "All-Rounder", isOverseas: true, price: 4.2, teamId: "SS", timestamp: "Pick 8" },
+      { id: 133, name: "Peter Siddle", role: "Fast Bowler", isOverseas: true, price: 2.5, teamId: "SS", timestamp: "Pick 9" },
+      { id: 134, name: "Tabrez Shamsi", role: "Spinner", isOverseas: true, price: 2.2, teamId: "SS", timestamp: "Pick 10" },
+      { id: 135, name: "Lachlan Shaw", role: "Wicket-keeper", isOverseas: true, price: 0.6, teamId: "SS", timestamp: "Pick 11" },
+      { id: 136, name: "Delano Potgieter", role: "All-Rounder", isOverseas: true, price: 0.6, teamId: "SS", timestamp: "Pick 12" },
+      { id: 137, name: "Josh Philippe", role: "Wicket-keeper", isOverseas: true, price: 2.3, teamId: "SS", timestamp: "Pick 13" },
+      { id: 138, name: "Shan Masood", role: "Top-Order Batter", isOverseas: false, price: 0.65, teamId: "SS", timestamp: "Pick 14" },
+      { id: 139, name: "Momin Qamar", role: "Spinner", isOverseas: false, price: 1.075, teamId: "SS", timestamp: "Pick 15" },
+      { id: 140, name: "Muhammad Awais Zafar", role: "Fast Bowler", isOverseas: false, price: 0.6, teamId: "SS", timestamp: "Pick 16" }
+    ];
+
+    // Helper: Calculate top priority roster gaps for a given team
+    function calculatePriorityGaps(roster) {
+      const wk = roster.filter(r => r.role === "Wicket-keeper").length;
+      const batters = roster.filter(r => r.role === "Top-Order Batter").length;
+      const allRounders = roster.filter(r => r.role === "All-Rounder").length;
+      const pace = roster.filter(r => r.role === "Fast Bowler").length;
+      const spin = roster.filter(r => r.role === "Spinner").length;
+
+      const gaps = [];
+      if (wk === 0) gaps.push({ text: "URGENT: Wicket-keeper", priority: 1 });
+      if (pace < 3) gaps.push({ text: `Pace Bowlers (${pace}/3)`, priority: 2 });
+      if (batters < 4) gaps.push({ text: `Top-Order Batters (${batters}/4)`, priority: 3 });
+      if (spin < 2) gaps.push({ text: `Spinners (${spin}/2)`, priority: 4 });
+      if (allRounders < 2) gaps.push({ text: `All-Rounders (${allRounders}/2)`, priority: 5 });
+
+      if (gaps.length === 0) {
+        return [{ text: "Roster Well Balanced", priority: 99 }];
+      }
+      return gaps.slice(0, 3);
+    }
+
+    function App() {
+      const [sales, setSales] = useState(() => {
+        const saved = localStorage.getItem("psl_sales_data");
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length >= 100) {
+              return parsed;
+            }
+          } catch(e) {}
+        }
+        return INITIAL_SALES;
+      });
+
+      const [myTeamId, setMyTeamId] = useState("ISLU");
+      const [selectedSquadTeamId, setSelectedSquadTeamId] = useState("ISLU");
+      const fileInputRef = useRef(null);
+
+      // Rapid entry state
+      const [pName, setPName] = useState("");
+      const [pRole, setPRole] = useState("Top-Order Batter");
+      const [pPrice, setPPrice] = useState("");
+      const [pOverseas, setPOverseas] = useState(false);
+      const [pTeam, setPTeam] = useState("ISLU");
+
+      // AI Advisor state
+      const [aiTargetPlayer, setAiTargetPlayer] = useState("");
+      const [aiTargetRole, setAiTargetRole] = useState("Wicket-keeper");
+      const [aiCurrentBid, setAiCurrentBid] = useState("3.5");
+      const [aiRivalTeam, setAiRivalTeam] = useState("LQ");
+      const [aiAdvice, setAiAdvice] = useState(null);
+
+      // Save sales to local storage
+      useEffect(() => {
+        localStorage.setItem("psl_sales_data", JSON.stringify(sales));
+      }, [sales]);
+
+      // Telemetry computation for all teams
+      const teamStats = useMemo(() => {
+        const stats = {};
+        DEFAULT_TEAMS.forEach(t => {
+          stats[t.id] = {
+            ...t,
+            spent: 0,
+            squadCount: 0,
+            overseasCount: 0,
+            roster: [],
+            roles: { "Wicket-keeper": 0, "Top-Order Batter": 0, "All-Rounder": 0, "Fast Bowler": 0, "Spinner": 0 }
+          };
+        });
+
+        sales.forEach(s => {
+          if (stats[s.teamId]) {
+            stats[s.teamId].spent += Number(s.price);
+            stats[s.teamId].squadCount += 1;
+            if (s.isOverseas) stats[s.teamId].overseasCount += 1;
+            stats[s.teamId].roster.push(s);
+            if (stats[s.teamId].roles[s.role] !== undefined) {
+              stats[s.teamId].roles[s.role] += 1;
+            }
+          }
+        });
+
+        // Compute remaining purse, max bid power, and priority gaps
+        Object.keys(stats).forEach(id => {
+          const t = stats[id];
+          t.remPurse = Math.max(0, t.purseCap - t.spent);
+          const unfilledSlots = Math.max(0, 16 - t.squadCount);
+          const reservedCap = unfilledSlots * 0.50; // PKR 0.50 Cr base slot reserve
+          t.maxBidPower = Math.max(0, t.remPurse - reservedCap);
+          t.priorityGaps = calculatePriorityGaps(t.roster);
+        });
+
+        return stats;
+      }, [sales]);
+
+      const myTeam = teamStats[myTeamId] || teamStats["ISLU"];
+
+      // Add sales record
+      const handleAddSale = (overrideTeamId) => {
+        if (!pName.trim()) return;
+        let parsedPrice = parseFloat(pPrice) || 0.6;
+        // Normalization: If user typed 126000000 instead of 12.6 Cr
+        if (parsedPrice > 1000) parsedPrice = parsedPrice / 10000000;
+
+        const targetTeam = overrideTeamId || pTeam;
+        const newSale = {
+          id: Date.now(),
+          name: pName.trim(),
+          role: pRole,
+          isOverseas: pOverseas,
+          price: parsedPrice,
+          teamId: targetTeam,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+
+        setSales(prev => [newSale, ...prev]);
+        setPName("");
+        setPPrice("");
+      };
+
+      const handleUndoLast = () => {
+        if (sales.length > 0) {
+          setSales(prev => prev.slice(1));
+        }
+      };
+
+      const handleDeleteSale = (saleId) => {
+        setSales(prev => prev.filter(s => s.id !== saleId));
+      };
+
+      // Excel / XLSX Uploader handler
+      const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+            const importedSales = [];
+            json.forEach((row, idx) => {
+              const name = row['Player'] || row['Player Name'] || row['Name'] || row['PLAYER'] || `Player ${idx + 1}`;
+              const role = row['Role'] || row['Position'] || row['ROLE'] || "Top-Order Batter";
+              const rawOverseas = String(row['Category'] || row['Overseas'] || row['Type'] || "").toLowerCase();
+              const isOverseas = rawOverseas.includes("yes") || rawOverseas.includes("foreign") || rawOverseas.includes("overseas");
+              let rawPrice = parseFloat(row['Price'] || row['Sold Price'] || row['Amount'] || row['PRICE'] || 0.6);
+              if (rawPrice > 1000) rawPrice = rawPrice / 10000000; // Normalize PKR to Crore
+
+              const rawTeam = String(row['Team'] || row['Franchise'] || row['Buyer'] || row['TEAM'] || "ISLU").toUpperCase();
+              let matchedTeam = DEFAULT_TEAMS.find(t => t.short === rawTeam || rawTeam.includes(t.short) || t.name.toUpperCase().includes(rawTeam));
+              const teamId = matchedTeam ? matchedTeam.id : "ISLU";
+
+              importedSales.push({
+                id: Date.now() + idx,
+                name: String(name).trim(),
+                role: String(role).trim(),
+                isOverseas: isOverseas,
+                price: rawPrice,
+                teamId: teamId,
+                timestamp: `Imported Pick ${idx + 1}`
+              });
+            });
+
+            if (importedSales.length > 0) {
+              setSales(importedSales);
+            }
+          } catch (err) {
+            alert("Error parsing file. Ensure it is a valid Excel/CSV spreadsheet.");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      // Run instant strategy advisor logic
+      const runAiAnalysis = () => {
+        const rival = teamStats[aiRivalTeam];
+        const bidVal = parseFloat(aiCurrentBid) || 3.0;
+
+        let verdict = "BID FAST";
+        let color = "text-emerald-400";
+        let cap = Math.min(myTeam.maxBidPower, bidVal + 2.5);
+        let reasoning = "";
+
+        if (rival.remPurse < bidVal) {
+          verdict = "WALK AWAY / THEY ARE OUT";
+          color = "text-cyan-400";
+          reasoning = `${rival.name} has only PKR ${rival.remPurse.toFixed(2)} Cr remaining and cannot match your bid of PKR ${bidVal.toFixed(2)} Cr!`;
+        } else if (rival.maxBidPower < bidVal) {
+          verdict = "PUSH RIVAL TO MAX";
+          color = "text-amber-400";
+          reasoning = `${rival.name} max bid ceiling is PKR ${rival.maxBidPower.toFixed(2)} Cr. Bid one more tick (+0.25 Cr) to force them to forfeit.`;
+        } else if (myTeam.remPurse < bidVal + 0.5) {
+          verdict = "LET THEM OVERPAY";
+          color = "text-rose-400";
+          reasoning = `Your remaining purse (PKR ${myTeam.remPurse.toFixed(2)} Cr) is constrained. Don't engage in a bidding war here.`;
+        } else {
+          verdict = "BID FAST & AGGRESSIVE";
+          color = "text-emerald-400";
+          reasoning = `${rival.name} urgently needs a ${aiTargetRole}. Counter-bid up to PKR ${cap.toFixed(2)} Cr to secure the asset.`;
+        }
+
+        setAiAdvice({
+          verdict,
+          color,
+          cap: cap.toFixed(2),
+          rivalMaxPower: rival.maxBidPower.toFixed(2),
+          rivalPurse: rival.remPurse.toFixed(2),
+          reasoning
+        });
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col pb-12">
+          {/* TOP COMMAND HEADER */}
+          <header className="bg-[#0b1120] border-b border-slate-800 sticky top-0 z-50 px-3 sm:px-4 py-2.5 sm:py-3 shadow-xl">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="flex items-center space-x-2.5 sm:space-x-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center font-black text-emerald-400 text-base sm:text-lg shrink-0">
+                  ⚡
+                </div>
+                <div>
+                  <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
+                    PSL AUCTION COMMAND CENTER
+                    <span className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">LIVE</span>
+                  </h1>
+                  <p className="text-[10px] sm:text-xs text-slate-400">100ms Scannable Intelligence & Bid Power Analyzer</p>
+                </div>
+              </div>
+
+              {/* MY TEAM FRANCHISE SELECTOR & EXCEL UPLOADER */}
+              <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900 border border-slate-700 rounded-lg px-2.5 sm:px-3 py-1 flex-1 sm:flex-none">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase shrink-0">My Team:</span>
+                  <select
+                    value={myTeamId}
+                    onChange={(e) => setMyTeamId(e.target.value)}
+                    className="bg-transparent text-xs sm:text-sm font-extrabold text-emerald-400 focus:outline-none cursor-pointer w-full"
+                  >
+                    {DEFAULT_TEAMS.map(t => (
+                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                        {t.name} ({t.short})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="px-2.5 sm:px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/50 rounded-lg text-[11px] sm:text-xs font-extrabold text-cyan-300 transition flex items-center gap-1 shrink-0"
+                >
+                  📊 Import Excel
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto w-full px-2.5 sm:px-4 pt-3 sm:pt-4 space-y-3 sm:space-y-4 flex-1">
+            {/* HERO MANUAL ENTRY BAR (HIGH-SPEED 1-CLICK LOGGING) */}
+            <div className="command-card rounded-xl p-2.5 sm:p-3 border-l-4 border-l-emerald-500 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] sm:text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1">
+                  <span>⚡</span> Rapid Auction Input (Auto-Calculates Telemetry)
+                </span>
+                <button
+                  onClick={handleUndoLast}
+                  disabled={sales.length === 0}
+                  className="text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition disabled:opacity-30"
+                >
+                  ↩ Undo Last Entry
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2">
+                <input
+                  type="text"
+                  placeholder="Player Name (e.g. Steve Smith)"
+                  value={pName}
+                  onChange={(e) => setPName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddSale()}
+                  className="lg:col-span-3 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-500 font-semibold focus:outline-none focus:border-emerald-500"
+                />
+
+                <select
+                  value={pRole}
+                  onChange={(e) => setPRole(e.target.value)}
+                  className="lg:col-span-2 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Top-Order Batter">Top-Order Batter</option>
+                  <option value="Wicket-keeper">Wicket-keeper</option>
+                  <option value="All-Rounder">All-Rounder</option>
+                  <option value="Fast Bowler">Fast Bowler</option>
+                  <option value="Spinner">Spinner</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-2 lg:col-span-4">
+                  <input
+                    type="number"
+                    step="0.05"
+                    placeholder="Price (PKR Cr)"
+                    value={pPrice}
+                    onChange={(e) => setPPrice(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddSale()}
+                    className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-500 mono font-bold focus:outline-none focus:border-emerald-500"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setPOverseas(!pOverseas)}
+                    className={`py-2 px-2 rounded-lg border text-xs font-extrabold transition flex items-center justify-center gap-1 ${
+                      pOverseas ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-slate-900 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {pOverseas ? "✈️ Overseas" : "🇵🇰 Local"}
+                  </button>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden lg:inline">Log To:</span>
+                  <div className="grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-4 gap-1 w-full">
+                    {DEFAULT_TEAMS.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleAddSale(t.id)}
+                        className="py-2 sm:py-1.5 px-1 rounded bg-slate-800 hover:bg-emerald-600 hover:text-black border border-slate-700 text-[11px] font-extrabold text-slate-200 transition text-center active:scale-95"
+                      >
+                        {t.short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* MY TEAM SPLIT-SECOND HUD */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="command-card rounded-xl p-3 sm:p-4 border-l-4 border-l-emerald-500">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block">Remaining Purse</span>
+                <div className="text-xl sm:text-3xl font-black text-emerald-400 mono mt-0.5 sm:mt-1">
+                  PKR {myTeam.remPurse.toFixed(2)} <span className="text-xs sm:text-sm text-emerald-500 font-bold">Cr</span>
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1 flex flex-col sm:flex-row justify-between">
+                  <span>Spent: {myTeam.spent.toFixed(2)} Cr</span>
+                  <span>Cap: {myTeam.purseCap.toFixed(1)} Cr</span>
+                </div>
+              </div>
+
+              <div className="command-card rounded-xl p-3 sm:p-4 border-l-4 border-l-cyan-500">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block">Max Bidding Power</span>
+                <div className="text-xl sm:text-3xl font-black text-cyan-400 mono mt-0.5 sm:mt-1">
+                  PKR {myTeam.maxBidPower.toFixed(2)} <span className="text-xs sm:text-sm text-cyan-500 font-bold">Cr</span>
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
+                  Slot Reserve: PKR {((Math.max(0, 16 - myTeam.squadCount)) * 0.50).toFixed(2)} Cr
+                </div>
+              </div>
+
+              <div className="command-card rounded-xl p-3 sm:p-4 border-l-4 border-l-amber-500">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block">Squad Capacity</span>
+                <div className="text-xl sm:text-3xl font-black text-amber-400 mono mt-0.5 sm:mt-1">
+                  {myTeam.squadCount} <span className="text-sm sm:text-lg text-slate-400 font-extrabold">/ 20</span>
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
+                  Overseas: <span className="font-extrabold text-amber-300">{myTeam.overseasCount} / 6 ✈️</span>
+                </div>
+              </div>
+
+              <div className="command-card rounded-xl p-3 sm:p-4 border-l-4 border-l-purple-500 col-span-2 lg:col-span-1">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block">Role Breakdown</span>
+                <div className="grid grid-cols-4 lg:grid-cols-2 gap-x-2 gap-y-1 text-[11px] sm:text-xs mt-1.5 sm:mt-2 font-bold">
+                  <div className="flex justify-between border-b border-slate-800 pb-0.5">
+                    <span className="text-slate-400">WK:</span>
+                    <span className={myTeam.roles["Wicket-keeper"] > 0 ? "text-emerald-400" : "text-rose-400 font-black"}>
+                      {myTeam.roles["Wicket-keeper"]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800 pb-0.5">
+                    <span className="text-slate-400">Bat:</span>
+                    <span className="text-white">{myTeam.roles["Top-Order Batter"]}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800 pb-0.5">
+                    <span className="text-slate-400">AR:</span>
+                    <span className="text-white">{myTeam.roles["All-Rounder"]}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800 pb-0.5">
+                    <span className="text-slate-400">Pace:</span>
+                    <span className="text-white">{myTeam.roles["Fast Bowler"]}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ALL 8 TEAMS RIVAL THREAT & GAP MATRIX */}
+            <div className="command-card rounded-xl p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 border-b border-slate-800 pb-2 gap-1">
+                <h2 className="text-xs sm:text-sm font-black uppercase text-white flex items-center gap-1.5">
+                  <span>🎯</span> Rival Threat & Priority Gap Matrix (8 Teams)
+                </h2>
+                <span className="text-[10px] sm:text-xs text-slate-400">Max Bid = Purse - Slot Reserve</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                {DEFAULT_TEAMS.map(t => {
+                  const stat = teamStats[t.id];
+                  const isMyFranchise = t.id === myTeamId;
+
+                  return (
+                    <div
+                      key={t.id}
+                      className={`rounded-lg p-2.5 sm:p-3 border transition ${
+                        isMyFranchise
+                          ? "bg-emerald-950/20 border-emerald-500/60 ring-1 ring-emerald-500/30"
+                          : "bg-slate-900/80 border-slate-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-[11px] sm:text-xs font-black px-2 py-0.5 rounded border ${t.bgClass}`}>
+                          {t.name} ({t.short})
+                        </span>
+                        {isMyFranchise && (
+                          <span className="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-500 text-black">MY TEAM</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                        <div className="bg-slate-950 p-1.5 sm:p-2 rounded border border-slate-800">
+                          <span className="text-[9px] sm:text-[10px] text-slate-500 block uppercase">Rem. Purse</span>
+                          <span className="font-black text-emerald-400 mono text-xs sm:text-sm">PKR {stat.remPurse.toFixed(2)} Cr</span>
+                        </div>
+                        <div className="bg-slate-950 p-1.5 sm:p-2 rounded border border-slate-800">
+                          <span className="text-[9px] sm:text-[10px] text-slate-500 block uppercase">Max Bid</span>
+                          <span className="font-black text-cyan-400 mono text-xs sm:text-sm">PKR {stat.maxBidPower.toFixed(2)} Cr</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 mb-2 px-0.5">
+                        <span>Squad: <strong className="text-white">{stat.squadCount}/20</strong></span>
+                        <span>Overseas: <strong className="text-amber-300">{stat.overseasCount}/6 ✈️</strong></span>
+                      </div>
+
+                      {/* PRIORITIZED GAPS */}
+                      <div className="space-y-1 pt-1 border-t border-slate-800">
+                        <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Priority Gaps:</span>
+                        {stat.priorityGaps.map((gap, gIdx) => (
+                          <div
+                            key={gIdx}
+                            className={`text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded flex items-center justify-between ${
+                              gap.priority === 1
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                                : gap.priority === 2
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                                : "bg-slate-800 text-slate-300 border border-slate-700"
+                            }`}
+                          >
+                            <span>#{gIdx + 1} {gap.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* INSTANT GEMINI AI BIDDING ADVISOR */}
+            <div className="command-card rounded-xl p-3 sm:p-4 border-l-4 border-l-cyan-500">
+              <div className="flex items-center justify-between mb-2.5 sm:mb-3 border-b border-slate-800 pb-2">
+                <div>
+                  <h2 className="text-xs sm:text-sm font-black uppercase text-white flex items-center gap-1.5">
+                    <span>🤖</span> Gemini AI Live Bidding Strategy Advisor
+                  </h2>
+                  <p className="text-[10px] sm:text-xs text-slate-400">Evaluates target role, live rival max bid power, and recommends split-second counter action.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
+                <input
+                  type="text"
+                  placeholder="Target Player Name"
+                  value={aiTargetPlayer}
+                  onChange={(e) => setAiTargetPlayer(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 font-semibold focus:outline-none focus:border-cyan-500"
+                />
+
+                <select
+                  value={aiTargetRole}
+                  onChange={(e) => setAiTargetRole(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="Wicket-keeper">Wicket-keeper</option>
+                  <option value="Top-Order Batter">Top-Order Batter</option>
+                  <option value="All-Rounder">All-Rounder</option>
+                  <option value="Fast Bowler">Fast Bowler</option>
+                  <option value="Spinner">Spinner</option>
+                </select>
+
+                <input
+                  type="number"
+                  step="0.25"
+                  placeholder="Active Bid (PKR Cr)"
+                  value={aiCurrentBid}
+                  onChange={(e) => setAiCurrentBid(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 mono font-bold focus:outline-none focus:border-cyan-500"
+                />
+
+                <select
+                  value={aiRivalTeam}
+                  onChange={(e) => setAiRivalTeam(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-xs font-bold text-amber-300 focus:outline-none focus:border-cyan-500"
+                >
+                  {DEFAULT_TEAMS.filter(t => t.id !== myTeamId).map(t => (
+                    <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                      Rival: {t.name} ({t.short})
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={runAiAnalysis}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-black font-black text-xs rounded-lg px-3 py-2 transition shadow-md uppercase active:scale-95 sm:col-span-2 lg:col-span-1"
+                >
+                  ⚡ Run AI Telemetry
+                </button>
+              </div>
+
+              {aiAdvice && (
+                <div className="mt-3 bg-slate-950 border border-cyan-500/40 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recommended Action:</span>
+                    <span className={`text-base sm:text-lg font-black tracking-wide ${aiAdvice.color}`}>
+                      {aiAdvice.verdict}
+                    </span>
+                    <p className="text-xs text-slate-300 mt-0.5">{aiAdvice.reasoning}</p>
+                  </div>
+                  <div className="flex gap-4 border-t sm:border-t-0 sm:border-l border-slate-800 pt-2 sm:pt-0 sm:pl-4 text-xs w-full sm:w-auto justify-between sm:justify-start">
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 block uppercase">Target Bid Cap</span>
+                      <span className="font-extrabold text-emerald-400 mono">PKR {aiAdvice.cap} Cr</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 block uppercase">Rival Purse Power</span>
+                      <span className="font-extrabold text-amber-400 mono">PKR {aiAdvice.rivalPurse} Cr</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ALL 8 FRANCHISES LIVE SQUAD INSPECTOR */}
+            <div className="command-card rounded-xl p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800 pb-2">
+                <div>
+                  <h2 className="text-xs sm:text-sm font-black uppercase text-white flex items-center gap-1.5">
+                    <span>📋</span> All 8 Franchises Live Squad Roster Inspector
+                  </h2>
+                  <p className="text-[10px] sm:text-xs text-slate-400">Inspect real-time player listings, contract prices, and category compositions from your spreadsheet.</p>
+                </div>
+
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                  {DEFAULT_TEAMS.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedSquadTeamId(t.id)}
+                      className={`px-2.5 py-1 rounded text-[11px] sm:text-xs font-extrabold transition shrink-0 ${
+                        selectedSquadTeamId === t.id
+                          ? "bg-emerald-500 text-black shadow-md"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {t.short} ({teamStats[t.id].squadCount})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SQUAD ROSTER TABLE */}
+              <div className="bg-slate-950 border border-slate-800 rounded-lg overflow-x-auto">
+                <div className="p-2.5 sm:p-3 bg-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 gap-1">
+                  <span className="text-[11px] sm:text-xs font-black text-emerald-400 uppercase">
+                    {teamStats[selectedSquadTeamId].name} Full Squad Roster ({teamStats[selectedSquadTeamId].squadCount} Players)
+                  </span>
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-400">
+                    Total Spent: PKR {teamStats[selectedSquadTeamId].spent.toFixed(2)} Cr
+                  </span>
+                </div>
+
+                <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+                  <thead>
+                    <tr className="bg-slate-900/60 text-slate-400 border-b border-slate-800 font-bold uppercase text-[10px] sm:text-xs">
+                      <th className="p-2 sm:p-2.5">#</th>
+                      <th className="p-2 sm:p-2.5">Player Name</th>
+                      <th className="p-2 sm:p-2.5">Role</th>
+                      <th className="p-2 sm:p-2.5">Category</th>
+                      <th className="p-2 sm:p-2.5 text-right">Contract Price</th>
+                      <th className="p-2 sm:p-2.5 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamStats[selectedSquadTeamId].roster.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-4 text-center text-slate-500 font-semibold">
+                          No players signed in this franchise squad yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      teamStats[selectedSquadTeamId].roster.map((player, idx) => (
+                        <tr key={player.id} className="border-b border-slate-800/60 hover:bg-slate-900/40 font-medium text-slate-200">
+                          <td className="p-2 sm:p-2.5 text-slate-500 mono">{idx + 1}</td>
+                          <td className="p-2 sm:p-2.5 font-bold text-white flex items-center gap-1.5">
+                            {player.name}
+                            {player.isOverseas && <span className="text-[9px] sm:text-[10px] text-amber-300 bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/30">✈️ Foreign</span>}
+                          </td>
+                          <td className="p-2 sm:p-2.5 text-slate-400 text-[11px] sm:text-xs">{player.role}</td>
+                          <td className="p-2 sm:p-2.5">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[9px] sm:text-[10px] font-bold border border-slate-700">
+                              {player.isOverseas ? "Overseas" : "Local"}
+                            </span>
+                          </td>
+                          <td className="p-2 sm:p-2.5 text-right font-black text-emerald-400 mono">
+                            PKR {player.price.toFixed(2)} Cr
+                          </td>
+                          <td className="p-2 sm:p-2.5 text-center">
+                            <button
+                              onClick={() => handleDeleteSale(player.id)}
+                              className="text-rose-400 hover:text-rose-300 font-bold px-1.5 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-[10px] sm:text-xs"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // Render App Component safely
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
