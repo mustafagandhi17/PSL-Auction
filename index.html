@@ -40,7 +40,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // --- CUSTOM DASHBOARD PASSCODE CONFIGURATION ---
-    const DASHBOARD_PASSCODE = "PSL2026"; // Shared team passcode
+    const DASHBOARD_PASSCODE = "PSL2026";
 
     // --- PASSWORD GATE SCREEN COMPONENT ---
     function PasscodeScreen({ onUnlock }) {
@@ -100,20 +100,4 @@
       { id: "LQ", name: "Lahore Qalandars", short: "LQ", color: "#10b981", bgClass: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400", purseCap: 50.5 },
       { id: "RWP", name: "Rawalpindi", short: "RWP", color: "#06b6d4", bgClass: "bg-cyan-500/10 border-cyan-500/40 text-cyan-400", purseCap: 45.0 },
       { id: "PZ", name: "Peshawar Zalmi", short: "PZ", color: "#f59e0b", bgClass: "bg-amber-500/10 border-amber-500/40 text-amber-400", purseCap: 50.5 },
-      { id: "QG", name: "Quetta Gladiators", short: "QG", color: "#a855f7", bgClass: "bg-purple-500/10 border-purple-500/40 text-purple-400", purseCap: 50.5 },
-      { id: "SS", name: "Sialkot Stallions", short: "SS", color: "#f43f5e", bgClass: "bg-rose-500/10 border-rose-500/40 text-rose-400", purseCap: 50.5 }
-    ];
-
-    // --- INITIAL DATASET FROM PSL 11 AUCTION SHEET (ALL 137 PLAYERS) ---
-    const INITIAL_SALES = [
-      // HYDERABAD (18 Players)
-      { id: 1, name: "Saim Ayub", role: "Top-Order Batter", isOverseas: false, price: 12.6, teamId: "HYD", timestamp: "Pick 1" },
-      { id: 2, name: "Usman Khan", role: "Wicket-keeper", isOverseas: false, price: 4.62, teamId: "HYD", timestamp: "Pick 2" },
-      { id: 3, name: "Akif Javed", role: "Fast Bowler", isOverseas: false, price: 1.96, teamId: "HYD", timestamp: "Pick 3" },
-      { id: 4, name: "Maaz Sadaqat", role: "All-Rounder", isOverseas: false, price: 3.5, teamId: "HYD", timestamp: "Pick 4" },
-      { id: 5, name: "Marnus Labuschagne", role: "Top-Order Batter", isOverseas: true, price: 5.88, teamId: "HYD", timestamp: "Direct Signing" },
-      { id: 6, name: "Mohammad Ali", role: "Fast Bowler", isOverseas: false, price: 2.15, teamId: "HYD", timestamp: "Pick 6" },
-      { id: 7, name: "Kusal Perrera", role: "Wicket-keeper", isOverseas: true, price: 3.1, teamId: "HYD", timestamp: "Pick 7" },
-      { id: 8, name: "Irfan Khan Niazi", role: "All-Rounder", isOverseas: false, price: 2.9, teamId: "HYD", timestamp: "Pick 8" },
-      { id: 9, name: "Hassan Khan", role: "Spinner", isOverseas: true, price: 1.85, teamId: "HYD", timestamp: "Pick 9" },
-      { id: 10, name: "
+      { id: "QG", name: "Quetta Gladiators", short: "QG", color: "#a855
